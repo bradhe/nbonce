@@ -13,7 +13,7 @@ func TestOnlySchedulesFunctionsOnce(t *testing.T) {
 	once := &NonblockingOnce{}
 
 	for i := 0; i < 10000; i++ {
-		once.Once(f)
+		once.Do(f)
 	}
 
 	once.Wait()

@@ -30,7 +30,7 @@ type NonblockingOnce struct {
 // Schedules a function to run one time in a goroutine if it hasn't been
 // scheduled already. If it has then it will return and not re-schedule the
 // function.
-func (self *NonblockingOnce) Once(f func()) {
+func (self *NonblockingOnce) Do(f func()) {
 	if atomic.CompareAndSwapInt32(&self.started, notstarted, started) {
 		go self.doFunc(f)
 	}
