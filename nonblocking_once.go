@@ -1,7 +1,6 @@
 package nbonce
 
 import (
-	"time"
 	"sync"
 	"sync/atomic"
 )
@@ -21,12 +20,12 @@ const (
 )
 
 type NonblockingOnce struct {
-	Resetable bool
+	Resettable bool
 
 	// Flags to indicate what state things are in.
-	started, finished int32
+	started int32
 
-	lock sync.Mutex
+	wg sync.WaitGroup
 }
 
 // Schedules a function to run one time in a goroutine if it hasn't been
@@ -34,6 +33,7 @@ type NonblockingOnce struct {
 // function.
 func (self *NonblockingOnce) Do(f func()) {
 	if atomic.CompareAndSwapInt32(&self.started, notstarted, started) {
+		self.wg.Add(1)
 		go self.doFunc(f)
 	}
 }
@@ -46,33 +46,18 @@ func (self *NonblockingOnce) Wait() {
 		return
 	}
 
-	for {
-		self.lock.Lock()
-		if self.finished == finished {
-			break
-		}
-		self.lock.Unlock()
-
-		// Not sure if this is strictly nescessary, just don't really want to burn
-		// up the CPU ya know?
-		time.Sleep(0)
-	}
+	self.wg.Wait()
 }
 
 func (self *NonblockingOnce) doFunc(f func()) {
-	atomic.StoreInt32(&self.finished, notfinished)
+	// Schedule cleanup for after this is fully completed.
+	defer func(self *NonblockingOnce) {
+		self.wg.Done()
 
-	// We do this to ensure that it always performs this action, even if f panics
-	// for whatever reason but doesn't kill this fun. There might be a better way
-	// to do this, and might not be nescessary at all.
-	defer func() {
-		atomic.StoreInt32(&self.finished, finished)
-	}()
+		if self.Resettable {
+			atomic.StoreInt32(&self.started, notstarted)
+		}
+	}(self)
 
-	// off to the races!
 	f()
-
-	if self.Resetable {
-		atomic.StoreInt32(&self.started, notstarted)
-	}
 }

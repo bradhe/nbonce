@@ -46,3 +46,41 @@ func TestWaitReturnsIfOnceWasNeverCalled(t *testing.T) {
 		t.Fatalf("expected worked to be true, got false")
 	}
 }
+
+func TestSchedulesMultipleWhenResettable(t *testing.T) {
+	var ran int
+
+	f := func() { ran += 1 }
+
+	once := &NonblockingOnce{}
+	once.Resettable = true
+
+	once.Do(f)
+	once.Wait()
+
+	once.Do(f)
+	once.Wait()
+
+	if ran != 2 {
+		t.Fatalf("expected ran to be 2, got %d", ran)
+	}
+}
+
+func TestDoesNotRescheduleWhenNotResettable(t *testing.T) {
+	var ran int
+
+	f := func() { ran += 1 }
+
+	once := &NonblockingOnce{}
+	once.Resettable = false
+
+	once.Do(f)
+	once.Wait()
+
+	once.Do(f)
+	once.Wait()
+
+	if ran != 1 {
+		t.Fatalf("expected ran to be 1, got %d", ran)
+	}
+}
