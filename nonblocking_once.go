@@ -21,6 +21,8 @@ const (
 )
 
 type NonblockingOnce struct {
+	Resetable bool
+
 	// Flags to indicate what state things are in.
 	started, finished int32
 
@@ -58,6 +60,8 @@ func (self *NonblockingOnce) Wait() {
 }
 
 func (self *NonblockingOnce) doFunc(f func()) {
+	atomic.StoreInt32(&self.finished, notfinished)
+
 	// We do this to ensure that it always performs this action, even if f panics
 	// for whatever reason but doesn't kill this fun. There might be a better way
 	// to do this, and might not be nescessary at all.
@@ -67,4 +71,8 @@ func (self *NonblockingOnce) doFunc(f func()) {
 
 	// off to the races!
 	f()
+
+	if self.Resetable {
+		atomic.StoreInt32(&self.started, notstarted)
+	}
 }
